@@ -28,12 +28,15 @@ return {
 
 	config = function()
 		require("telescope").setup {
-			defaults = {
-				sorting_strategy = "ascending",
-				layout_config = {
-					prompt_position = "top"
-				},
-				mappings = {
+		defaults = {
+			sorting_strategy = "ascending",
+			layout_config = {
+				prompt_position = "top"
+			},
+			file_ignore_patterns = {
+				"node_modules",
+			},
+			mappings = {
 					i = {
 						["<C-j>"] = actions.move_selection_next,
 						["<C-k>"] = actions.move_selection_previous,
@@ -77,7 +80,13 @@ return {
 		vim.keymap.set('n', '<leader>sw', builtin.grep_string, {
 			desc = '[S]earch current [W]ord'
 		})
-		vim.keymap.set('n', '<leader>sg', builtin.live_grep, {
+		vim.keymap.set('n', '<leader>sg', function()
+			builtin.live_grep({ 
+				additional_args = function()
+					return { "--follow" }
+				end
+			})
+		end, {
 			desc = '[S]earch by [G]rep'
 		})
 		vim.keymap.set('n', '<leader>sd', builtin.diagnostics, {
@@ -118,6 +127,9 @@ return {
 		vim.keymap.set('n', '<leader>s/', function()
 			builtin.live_grep {
 				grep_open_files = true,
+				additional_args = function()
+					return { "--follow" }
+				end,
 				prompt_title = 'Live Grep in Open Files'
 			}
 		end, {
