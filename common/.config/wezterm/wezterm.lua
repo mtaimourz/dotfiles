@@ -2,14 +2,14 @@ local wezterm = require("wezterm")
 local act = wezterm.action
 
 local config = wezterm.config_builder()
+local is_linux = wezterm.target_triple:find("linux") ~= nil
 
--- Work around the current NVIDIA/Plasma Wayland explicit-sync crash in the
--- Flatpak build by running WezTerm through XWayland.
-config.enable_wayland = false
-
--- Plasma is scaled to 195%, but this XWayland window otherwise renders at
--- 100%.  Match the desktop's effective DPI (96 * 1.95).
-config.dpi = 187.2
+if is_linux then
+  -- NVIDIA/Plasma workaround for this machine: use XWayland and compensate
+  -- for Plasma's 195% scale. macOS uses WezTerm's native defaults.
+  config.enable_wayland = false
+  config.dpi = 187.2
+end
 
 config.font = wezterm.font("MesloLGS NF")
 config.font_size = 10.0
@@ -83,9 +83,9 @@ config.window_frame = {
 -- integrated window buttons on the right.
 wezterm.on("format-tab-title", function(tab, tabs, panes, config, hover, max_width)
   -- This WezTerm release does not expose pane dimensions to this callback.
-  -- At the corrected DPI, about 220 Noto Sans characters span the usable
-  -- width of this display.
-  local available_columns = 220
+  -- Account for the Linux display's corrected DPI; use a wider unscaled
+  -- baseline on other platforms.
+  local available_columns = is_linux and 220 or 420
   local tab_width = math.max(12, math.floor(available_columns / #tabs))
   local title = tab.active_pane.title
 

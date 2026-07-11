@@ -1,0 +1,5 @@
+# Live source                                      | destination in this repo
+~/.zshrc                                           | common/.zshrc
+~/.tmux.conf                                       | common/.tmux.conf
+~/.vimrc                                           | common/.vimrc
+~/.config/wezterm/wezterm.lua                      | common/.config/wezterm/wezterm.lua
