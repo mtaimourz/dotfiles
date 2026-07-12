@@ -62,8 +62,12 @@ config.hide_tab_bar_if_only_one_tab = false
 config.tab_bar_at_bottom = false
 -- Let the formatter below expand tabs to share the whole window width.
 config.tab_max_width = 999
--- Keep a distinct window title row above the tabs, like Ptyxis.
-config.window_decorations = "TITLE|RESIZE"
+-- Draw minimize / maximize / close as integrated buttons in the tab bar
+-- (styled by window_frame.button_* below).  The bare "TITLE|RESIZE" mode
+-- relies on the KWin window manager to draw them, which it doesn't do on this
+-- NVIDIA/XWayland setup, leaving the title bar button-less.
+config.window_decorations = "INTEGRATED_BUTTONS|RESIZE"
+config.integrated_title_buttons = { "Hide", "Maximize", "Close" }
 config.window_frame = {
   font = wezterm.font("Noto Sans", { weight = "Bold" }),
   -- Match the comfortably-sized header used by the desktop terminal.
@@ -131,6 +135,14 @@ config.audible_bell = "Disabled"
 config.window_close_confirmation = "NeverPrompt"
 
 config.keys = {
+  -- Tab management -------------------------------------------------------
+  -- Reorder the current tab (mouse drag-reorder is unsupported by WezTerm).
+  { key = "LeftArrow", mods = "CTRL|SHIFT", action = act.MoveTabRelative(-1) },
+  { key = "RightArrow", mods = "CTRL|SHIFT", action = act.MoveTabRelative(1) },
+  -- Note: WezTerm has no working tab drag/tear-off on this build, so there is
+  -- no "detach tab into a new window" binding.  Ctrl+Shift+N falls back to
+  -- WezTerm's built-in SpawnWindow (a fresh new window), which is reliable.
+  -----------------------------------------------------------------------
   { key = "1", mods = "CTRL", action = act.ActivateTab(0) },
   { key = "2", mods = "CTRL", action = act.ActivateTab(1) },
   { key = "3", mods = "CTRL", action = act.ActivateTab(2) },
