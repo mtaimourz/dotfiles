@@ -1,0 +1,21 @@
+{
+    "workbench.colorTheme": "Shades of Purple",
+    "leetcode.hint.setDefaultLanguage": false,
+    "leetcode.hint.commentDescription": false,
+    "leetcode.hint.configWebviewMarkdown": false,
+    "debug.onTaskErrors": "abort",
+    "editor.matchBrackets": "never",
+    "editor.copyWithSyntaxHighlighting": false,
+    "gitlens.ai.model": "vscode",
+    "gitlens.ai.vscode.model": "copilot:gpt-4.1",
+    "github.copilot.enable": {
+        "*": false,
+        "plaintext": false,
+        "markdown": false,
+        "scminput": false
+    },
+    "diffEditor.ignoreTrimWhitespace": false,
+    "editor.lineNumbers": "relative",
+    "editor.defaultFormatter": "vscode.json-language-features",
+    "editor.formatOnSave": true
+}

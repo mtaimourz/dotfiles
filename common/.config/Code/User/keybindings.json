@@ -1,0 +1,12 @@
+[
+    {
+        "key": "ctrl+c",
+        "command": "editor.action.clipboardCopyAction",
+        "when": "isLinux && editorTextFocus"
+    },
+    {
+        "key": "ctrl+w",
+        "command": "workbench.action.closeActiveEditor",
+        "when": "isLinux && editorTextFocus"
+    }
+]
