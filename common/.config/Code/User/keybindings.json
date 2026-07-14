@@ -1,5 +1,10 @@
 [
     {
+        "key": "ctrl+t",
+        "command": "workbench.action.quickOpen",
+        "args": ""
+    },
+    {
         "key": "ctrl+c",
         "command": "editor.action.clipboardCopyAction",
         "when": "isLinux && editorTextFocus"
