@@ -4,7 +4,7 @@
     "leetcode.hint.commentDescription": false,
     "leetcode.hint.configWebviewMarkdown": false,
     "debug.onTaskErrors": "abort",
-    "editor.matchBrackets": false,
+    "editor.matchBrackets": "never",
     "editor.copyWithSyntaxHighlighting": false,
     "gitlens.ai.model": "vscode",
     "gitlens.ai.vscode.model": "copilot:gpt-4.1",
