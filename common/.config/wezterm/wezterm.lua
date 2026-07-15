@@ -12,7 +12,10 @@ if is_linux then
 end
 
 config.font = wezterm.font("MesloLGS NF")
-config.font_size = 10.0
+-- WezTerm runs through XWayland on this 195%-scaled Plasma display.  KWin
+-- scales the resulting surface down, so use the 2x logical size to match the
+-- desktop terminal's 10pt font at native desktop scale.
+config.font_size = is_linux and 20.0 or 10.0
 config.line_height = 1.0
 
 config.color_scheme = "Ptyxis Match"
@@ -135,6 +138,8 @@ config.audible_bell = "Disabled"
 config.window_close_confirmation = "NeverPrompt"
 
 config.keys = {
+  -- Restore the configured size after any accidental Ctrl+- zooming.
+  { key = "0", mods = "CTRL", action = act.ResetFontSize },
   -- Tab management -------------------------------------------------------
   -- Reorder the current tab (mouse drag-reorder is unsupported by WezTerm).
   { key = "LeftArrow", mods = "CTRL|SHIFT", action = act.MoveTabRelative(-1) },
