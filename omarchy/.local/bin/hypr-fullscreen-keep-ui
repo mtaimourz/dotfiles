@@ -1,0 +1,28 @@
+#!/bin/bash
+
+# Fullscreen the focused window without telling the app about it.
+#
+# Chromium-based browsers (Chrome, Brave) react to the compositor's fullscreen
+# state by switching to their own fullscreen UI, which drops the tab strip and
+# toolbar -- so a plain SUPER+F on a browser costs you the tabs.
+#
+# Hyprland keeps the two states apart: `internal` is how the window is laid
+# out, `client` is what the window is told about itself. internal=2 with
+# client=0 fills the monitor while the app still believes it is an ordinary
+# window, so it keeps whatever UI it had.
+#
+# A page's own fullscreen (F11, a video's fullscreen button) goes through the
+# client-initiated path and is untouched -- hiding the chrome is the point of
+# pressing those.
+
+set -euo pipefail
+
+internal=$(hyprctl activewindow -j | jq -r '.fullscreen // 0')
+
+if [[ $internal == "0" ]]; then
+  hyprctl dispatch 'hl.dsp.window.fullscreen_state({ internal = 2, client = 0 })' >/dev/null 2>&1 ||
+    hyprctl dispatch fullscreenstate 2 0 >/dev/null
+else
+  hyprctl dispatch 'hl.dsp.window.fullscreen_state({ internal = 0, client = 0 })' >/dev/null 2>&1 ||
+    hyprctl dispatch fullscreenstate 0 0 >/dev/null
+fi
