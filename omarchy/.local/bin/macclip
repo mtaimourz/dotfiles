@@ -1,0 +1,90 @@
+#!/usr/bin/env bash
+# macclip - pull the image on the MacBook's clipboard into this machine's
+# clipboard (and a file), so it can be pasted into a Claude Code session that
+# is being driven over ssh from the Mac.
+#
+#   Mac:   Cmd+Shift+Ctrl+4   (region screenshot -> Mac clipboard)
+#   here:  macclip            (then Ctrl+V in Claude Code, or use the path)
+#
+# env: MACCLIP_HOST (default macbook), MACCLIP_DIR, MACCLIP_KEEP
+set -uo pipefail
+
+HOST=${MACCLIP_HOST:-macbook}
+DIR=${MACCLIP_DIR:-$HOME/Pictures/macclip}
+KEEP=${MACCLIP_KEEP:-40}
+REMOTE=${MACCLIP_REMOTE:-\~/bin/pbimg}
+
+want_clip=1
+quiet=0
+remote_args=()
+
+while (($#)); do
+  case $1 in
+    --no-clip|--path-only) want_clip=0 ;;
+    -q|--quiet)            quiet=1 ;;
+    --full|--types)        remote_args+=("$1") ;;
+    --max)                 remote_args+=("$1" "${2:?--max needs a pixel value}"); shift ;;
+    -h|--help)
+      sed -n '2,12p' "$0" | sed 's/^# \?//'
+      exit 0 ;;
+    *) printf 'macclip: unknown option %s\n' "$1" >&2; exit 2 ;;
+  esac
+  shift
+done
+
+# --types is a diagnostic; just show what the Mac pasteboard holds.
+for a in ${remote_args+"${remote_args[@]}"}; do
+  if [[ $a == --types ]]; then
+    exec ssh "$HOST" "$REMOTE --types"
+  fi
+done
+
+mkdir -p "$DIR" || exit 1
+tmp=$(mktemp "$DIR/.macclip.XXXXXX.png") || exit 1
+trap 'rm -f "$tmp"' EXIT
+
+err=$(ssh "$HOST" "$REMOTE ${remote_args+${remote_args[*]}}" 2>&1 >"$tmp")
+rc=$?
+
+if ((rc != 0)); then
+  printf 'macclip: %s\n' "${err:-ssh to $HOST failed (rc=$rc)}" >&2
+  exit 1
+fi
+if [[ ! -s $tmp ]]; then
+  printf 'macclip: no image came back from %s\n' "$HOST" >&2
+  exit 1
+fi
+if [[ $(head -c 8 "$tmp" | od -An -tx1 | tr -d ' \n') != 89504e470d0a1a0a ]]; then
+  printf 'macclip: got %s bytes but it is not a PNG\n' "$(wc -c <"$tmp")" >&2
+  exit 1
+fi
+
+out=$DIR/shot-$(date +%Y%m%d-%H%M%S).png
+mv "$tmp" "$out" || exit 1
+trap - EXIT
+
+if ((want_clip)); then
+  if command -v wl-copy >/dev/null; then
+    wl-copy --type image/png <"$out"
+  elif command -v xclip >/dev/null; then
+    xclip -selection clipboard -t image/png -i "$out"
+  else
+    printf 'macclip: no wl-copy/xclip; file only\n' >&2
+  fi
+fi
+
+# Keep the last N shots.
+if [[ $KEEP =~ ^[0-9]+$ ]] && ((KEEP > 0)); then
+  mapfile -t old < <(ls -1t "$DIR"/shot-*.png 2>/dev/null | tail -n +$((KEEP + 1)))
+  ((${#old[@]})) && rm -f -- "${old[@]}"
+fi
+
+if ((quiet)); then
+  printf '%s\n' "$out"
+else
+  read -r w h < <(python3 -c "
+import struct,sys
+d=open(sys.argv[1],'rb').read(33)
+print(*struct.unpack('>II', d[16:24]))" "$out" 2>/dev/null || echo '? ?')
+  printf '%s  (%sx%s, %s KB)\n' "$out" "$w" "$h" "$(( ($(wc -c <"$out") + 1023) / 1024 ))"
+fi

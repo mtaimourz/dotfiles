@@ -4,10 +4,8 @@
     "leetcode.hint.commentDescription": false,
     "leetcode.hint.configWebviewMarkdown": false,
     "debug.onTaskErrors": "abort",
-    "editor.matchBrackets": "never",
+    "editor.matchBrackets": false,
     "editor.copyWithSyntaxHighlighting": false,
-    "gitlens.ai.model": "vscode",
-    "gitlens.ai.vscode.model": "copilot:gpt-4.1",
     "github.copilot.enable": {
         "*": false,
         "plaintext": false,
@@ -17,5 +15,13 @@
     "diffEditor.ignoreTrimWhitespace": false,
     "editor.lineNumbers": "relative",
     "editor.defaultFormatter": "vscode.json-language-features",
-    "editor.formatOnSave": true
+    "editor.formatOnSave": true,
+    "vim.useSystemClipboard": true,
+    "vim.handleKeys": {
+        "<C-a>": false,
+        "<C-c>": false,
+        "<C-x>": false,
+        "<C-v>": false,
+        "<C-w>": false
+    }
 }
