@@ -1,0 +1,134 @@
+#!/usr/bin/env bash
+# Open another window of the application that currently has focus.
+#
+# Hyprland's group:auto_group puts newly mapped windows into the focused group,
+# so when the focused window is grouped this effectively opens a new tab of the
+# same app in that group -- the way SUPER+RETURN already does for the terminal,
+# but for any application.
+
+set -uo pipefail
+
+win=$(hyprctl activewindow -j 2>/dev/null) || exit 0
+[[ -z $win || $win == "null" ]] && exit 0
+
+class=$(jq -r '.class // ""' <<<"$win")
+initial_class=$(jq -r '.initialClass // ""' <<<"$win")
+pid=$(jq -r '.pid // 0' <<<"$win")
+
+[[ -z $class && -z $initial_class ]] && exit 0
+
+state_dir="${XDG_CACHE_HOME:-$HOME/.cache}/hypr-new-window-of-focused"
+norm() { printf '%s' "${1,,}" | tr -cd 'a-z0-9'; }
+count_windows() { hyprctl clients -j | jq --arg c "$1" '[.[] | select(.class == $c)] | length'; }
+
+desktop_dirs=()
+IFS=: read -ra _xdg <<<"${XDG_DATA_DIRS:-/usr/local/share:/usr/share}"
+for d in "${XDG_DATA_HOME:-$HOME/.local/share}" "${_xdg[@]}" \
+         "$HOME/.local/share/flatpak/exports/share" /var/lib/flatpak/exports/share; do
+  [[ -d $d/applications ]] && desktop_dirs+=("$d/applications")
+done
+mapfile -t entries < <(find "${desktop_dirs[@]}" -maxdepth 2 -name '*.desktop' 2>/dev/null)
+
+# Exec line of a desktop entry's main section, with field codes stripped.
+entry_exec() {
+  sed -n '/^\[Desktop Entry\]/,/^\[/p' "$1" |
+    sed -n 's/^Exec=//p' | head -1 |
+    sed -e 's/%[fFuUdDnNickvm]//g' -e 's/[[:space:]]\+$//'
+}
+
+# Chrome ignores a bare --new-window once a session is running and silently
+# refuses chrome:// URLs handed to it on the command line, so such a window has
+# to be opened on about:blank. Brave and friends are fine without it, so try
+# the clean way first and remember per-class when it doesn't work.
+launch_chromium() {
+  local cmd=$1 target_class=$2
+  local flag_file="$state_dir/$(norm "$target_class").needs-url"
+
+  if [[ -f $flag_file ]]; then
+    setsid uwsm-app -- $cmd --new-window about:blank >/dev/null 2>&1 &
+    exit 0
+  fi
+
+  local before after
+  before=$(count_windows "$target_class")
+  setsid uwsm-app -- $cmd --new-window >/dev/null 2>&1 &
+
+  for _ in {1..12}; do
+    sleep 0.25
+    after=$(count_windows "$target_class")
+    [[ $after -gt $before ]] && exit 0
+  done
+
+  mkdir -p "$state_dir" && : >"$flag_file"
+  setsid uwsm-app -- $cmd --new-window about:blank >/dev/null 2>&1 &
+  exit 0
+}
+
+launch() {
+  local entry=$1 cmd action
+  cmd=$(entry_exec "$entry")
+
+  local bin=${cmd%% *}; bin=${bin##*/}
+  if [[ $bin == *chrome* || $bin == *chromium* || $bin == *brave* \
+     || $bin == *edge* || $bin == *vivaldi* || $bin == *opera* ]]; then
+    launch_chromium "$cmd" "${class:-$initial_class}"
+  fi
+
+  # Otherwise prefer an explicit "new window" action when the entry defines one.
+  for action in new-window NewWindow new_window; do
+    if grep -qiE "^\[Desktop Action ${action}\]" "$entry"; then
+      exec uwsm-app -- "${entry}:${action}"
+    fi
+  done
+  exec uwsm-app -- "$entry"
+}
+
+# 1. Exact StartupWMClass match (the authoritative mapping).
+for entry in "${entries[@]}"; do
+  while IFS= read -r wmclass; do
+    [[ -z $wmclass ]] && continue
+    if [[ ${wmclass,,} == "${class,,}" || ${wmclass,,} == "${initial_class,,}" ]]; then
+      launch "$entry"
+    fi
+  done < <(sed -n 's/^StartupWMClass=//p' "$entry")
+done
+
+# 2. Desktop entry id matches the class, either whole or as the trailing
+#    component of a reverse-DNS id (org.gnome.Nautilus -> nautilus).
+for entry in "${entries[@]}"; do
+  id=$(basename "$entry" .desktop)
+  for c in "$class" "$initial_class"; do
+    [[ -z $c ]] && continue
+    if [[ ${id,,} == "${c,,}" || ${id##*.} == "${c,,}" ]]; then
+      launch "$entry"
+    fi
+  done
+done
+
+# 3. Omarchy web apps: the window is a Chrome --app= instance whose class
+#    encodes the URL with an unspecified separator, so compare both stripped
+#    down to alphanumerics.
+if [[ ${class,,} == chrome-* || ${initial_class,,} == chrome-* ]]; then
+  app_id=${class,,}; app_id=${app_id#chrome-}; app_id=${app_id%-default}
+  app_key=$(norm "$app_id")
+  if [[ -n $app_key ]]; then
+    for entry in "${entries[@]}"; do
+      url=$(sed -n 's/^Exec=.*\(https\?:\/\/[^ "'"'"']*\).*/\1/p' "$entry" | head -1)
+      [[ -z $url ]] && continue
+      url_key=$(norm "${url#*://}")
+      if [[ -n $url_key && ( $url_key == "$app_key" || $app_key == "$url_key"* ) ]]; then
+        exec uwsm-app -- "$entry"
+      fi
+    done
+  fi
+fi
+
+# 4. Last resort: re-run the executable behind the window.
+if [[ $pid -gt 0 && -r /proc/$pid/cmdline ]]; then
+  exe=$(tr '\0' '\n' < "/proc/$pid/cmdline" | head -1)
+  [[ -n $exe ]] && exec uwsm-app -- "$exe"
+fi
+
+notify-send -a Hyprland "No launcher for '${class:-$initial_class}'" \
+  "Could not work out how to open another window of this app." 2>/dev/null
+exit 1
