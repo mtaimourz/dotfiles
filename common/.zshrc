@@ -80,3 +80,36 @@ fi
 
 # --- secrets & machine-specific overrides (NOT synced/committed) ---
 [ -f "$HOME/.zshrc.local" ] && source "$HOME/.zshrc.local"
+
+# GitHub SSH + CLI account switching (ghwork, ghpersonal, ghtaxkcd, ghbackup).
+[[ ! -f "$HOME/.config/github-account-switcher/accounts.zsh" ]] ||
+  source "$HOME/.config/github-account-switcher/accounts.zsh"
+
+# --- auto-activate python .venv on cd ---
+# Activates the nearest .venv/ found in $PWD or a parent; deactivates on leaving.
+# Only ever deactivates a venv it activated itself ($_VENV_AUTO), so manually
+# activated environments are left alone.
+autoload -Uz add-zsh-hook
+
+_venv_auto_activate() {
+  local d="$PWD" found=""
+  while [[ -n "$d" && "$d" != "/" ]]; do
+    [[ -f "$d/.venv/bin/activate" ]] && { found="$d/.venv"; break; }
+    d="${d:h}"
+  done
+
+  if [[ -n "$found" ]]; then
+    if [[ "$VIRTUAL_ENV" != "$found" ]]; then
+      [[ -n "$_VENV_AUTO" ]] && (( $+functions[deactivate] )) && deactivate
+      source "$found/bin/activate"
+      _VENV_AUTO="$found"
+    fi
+  elif [[ -n "$_VENV_AUTO" ]]; then
+    (( $+functions[deactivate] )) && deactivate
+    unset _VENV_AUTO
+  fi
+}
+
+add-zsh-hook chpwd _venv_auto_activate
+_venv_auto_activate
+# --- end auto-activate python .venv ---
